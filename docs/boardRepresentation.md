@@ -1,0 +1,3 @@
+## Board Representation
+
+Chexe uses the 0x88 board representation model, which essentially creates a 16x8 array which includes the 8x8 chess board, along with another 8x8 buffer. Since the total row width is exactly 16 bits, the math becomes easier. The lower 4 bits represent the file, and the upper 4 bits represent the rank. To be on the valid, playable board, the lower 4 bits must be between 0000 and 0111. We can check this conveniently using the (targetSquare & 0x88) check, which is where this model gets it's name from.

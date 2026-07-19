@@ -25,16 +25,16 @@ class Piece:
 def initBoard():
     global board, whiteToMove, castlingRights
     chessBoard = [
-        Piece.BR, Piece.BN, Piece.BB, Piece.BQ, Piece.BK, Piece.BB, Piece.BN, Piece.BR,
-        Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP,
-        Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-        Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-        Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-        Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
+        Piece.WR, Piece.WN, Piece.WB, Piece.WQ, Piece.WK, Piece.WB, Piece.WN, Piece.WR,
         Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP,
-        Piece.WR, Piece.WN, Piece.WB, Piece.WQ, Piece.WK, Piece.WB, Piece.WN, Piece.WR
+        Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
+        Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
+        Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
+        Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
+        Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP,
+        Piece.BR, Piece.BN, Piece.BB, Piece.BQ, Piece.BK, Piece.BB, Piece.BN, Piece.BR
     ]
-    for i in range(0, 64, 8):
+    for i in range(0, 64, 8): # adds buffer board
         board.extend(chessBoard[i : i + 8])
         board.extend([Piece.OFFBOARD] * 8)
     whiteToMove = True
@@ -45,11 +45,11 @@ def initBoard():
         "BQ": True
     }
 
-def printBoard():
+""" def printBoard():
     for col in range(0, 64, 8):
         for row in range(0, 8):
             print(pieceToChar(board[col+row]), end=" ")
-        print("")
+        print("") """
 
 def pieceToChar(Piece):
     symbols = {
@@ -76,3 +76,14 @@ def pieceToChar(Piece):
 
 def isSquareValid(square):
     return ((square & 0x88)) == 0
+
+# If you subtract the index of square A from the index of square B, 1 means A is one square left of B, 16 means A is directly below B
+def findDelta(fromSquare, toSquare):
+    fromIndex = fromSquare
+    toIndex = toSquare
+    delta = (toIndex - fromIndex) + 0x80 # maximum neg jump = 9, max pos jump = 247
+    return delta
+
+def generateAttacks():
+    global attacks
+    return attacks
