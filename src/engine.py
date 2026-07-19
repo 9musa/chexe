@@ -1,10 +1,12 @@
 # ENGINE LOGIC
 
-board = [0] * 64
+board = [0] * 128
+attacks = [0] * 257
 whiteToMove = True
 castlingRights = {}
 
 class Piece:
+    OFFBOARD = -1
     EMPTY = 0
     WP = 1
     WN = 2
@@ -22,7 +24,7 @@ class Piece:
 
 def initBoard():
     global board, whiteToMove, castlingRights
-    board = [
+    chessBoard = [
         Piece.BR, Piece.BN, Piece.BB, Piece.BQ, Piece.BK, Piece.BB, Piece.BN, Piece.BR,
         Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP,
         Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
@@ -32,6 +34,9 @@ def initBoard():
         Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP,
         Piece.WR, Piece.WN, Piece.WB, Piece.WQ, Piece.WK, Piece.WB, Piece.WN, Piece.WR
     ]
+    for i in range(0, 64, 8):
+        board.extend(chessBoard[i : i + 8])
+        board.extend([Piece.OFFBOARD] * 8)
     whiteToMove = True
     castlingRights = {
         "WK": True,
@@ -46,8 +51,9 @@ def printBoard():
             print(pieceToChar(board[col+row]), end=" ")
         print("")
 
-def pieceToChar(piece):
+def pieceToChar(Piece):
     symbols = {
+        Piece.OFFBOARD: "--",
         Piece.EMPTY: "OO",
         Piece.WP: "WP",
         Piece.WN: "WN",
@@ -62,6 +68,11 @@ def pieceToChar(piece):
         Piece.BQ: "BQ",
         Piece.BK: "BK"
     }
-    return symbols[piece]
-initBoard()
-printBoard()
+    return symbols[Piece]
+
+""" def squareToIndex(index):
+
+    return index """
+
+def isSquareValid(square):
+    return ((square & 0x88)) == 0
