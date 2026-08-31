@@ -4,6 +4,7 @@ board = [0] * 128
 attacks = [0] * 257
 whiteToMove = True
 castlingRights = {}
+enPassantSquare = -1 # none available
 
 class Piece:
     OFFBOARD = -1
@@ -23,7 +24,7 @@ class Piece:
 
 
 def initBoard():
-    global board, whiteToMove, castlingRights
+    global whiteToMove, castlingRights
     chessBoard = [
         Piece.WR, Piece.WN, Piece.WB, Piece.WQ, Piece.WK, Piece.WB, Piece.WN, Piece.WR,
         Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP, Piece.WP,
@@ -34,6 +35,7 @@ def initBoard():
         Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP, Piece.BP,
         Piece.BR, Piece.BN, Piece.BB, Piece.BQ, Piece.BK, Piece.BB, Piece.BN, Piece.BR
     ]
+    board.clear()
     for i in range(0, 64, 8): # adds buffer board
         board.extend(chessBoard[i : i + 8])
         board.extend([Piece.OFFBOARD] * 8)
@@ -84,6 +86,97 @@ def findDelta(fromSquare, toSquare):
     delta = (toIndex - fromIndex) + 0x80 # maximum neg jump = 9, max pos jump = 247
     return delta
 
+# bit flags
+atkKnight = 1
+atkKing = 2
+atkBishop = 4
+atkRook = 8
+atkWhitePawn = 16
+atkBlackPawn = 32
+
+# piece vectors
+knightVecs = [33, 31, 18, 14, -33, -31, -18, -14]
+kingVecs = [1, 15, 16, 17, -1, -15, -16, -17]
+bishopVecs = [15, 17, -15, -17]
+rookVecs = [1, 16, -1, -16]
+whitePawnVecs = [15, 17]
+blackPawnVecs = [-15, -17]
+
 def generateAttacks():
     global attacks
+    attacks = [0] * 257
+    for v in knightVecs:
+        attacks[v + 0x80] |= atkKnight
+    for v in kingVecs:
+        attacks[v + 0x80] |= atkKing
+    for v in whitePawnVecs:
+        attacks[v + 0x80] |= atkWhitePawn
+    for v in blackPawnVecs:
+        attacks[v + 0x80] |= atkBlackPawn
+    for v in bishopVecs:
+        for step in range(1, 8):
+            attacks[(v * step) + 0x80] |= atkBishop
+    for v in rookVecs:
+        for step in range(1, 8):
+            attacks[(v * step) + 0x80] |= atkRook
     return attacks
+
+def getDirection(fromSquare, toSquare):
+    fileStep = (toSquare % 16 > fromSquare % 16) - (toSquare % 16 < fromSquare % 16)
+    rankStep = (toSquare // 16 > fromSquare // 16) - (toSquare // 16 < fromSquare // 16)
+    return rankStep * 16 + fileStep
+
+# clear path check
+def rayIsClear(fromSquare, toSquare):
+    vec = getDirection(fromSquare, toSquare)
+    current = fromSquare + vec
+    while current != toSquare:
+        if board[current] != Piece.EMPTY:
+            return False
+        current += vec
+    return True
+
+# scans every square to look for attackers, slow
+def isSquareAttacked(square, byWhite):
+    for fromSquare in range(128):
+        if not isSquareValid(fromSquare): continue
+        piece = board[fromSquare]
+        if piece == Piece.EMPTY:
+            continue
+        isWhitePiece = (piece <= Piece.WK)
+        if isWhitePiece != byWhite: continue
+        flags = attacks[findDelta(fromSquare, square)]
+
+        if piece in [Piece.WN, Piece.BN]:
+            if flags & atkKnight:
+                return True
+        elif piece in [Piece.WK, Piece.BK]:
+            if flags & atkKing:
+                return True
+        if piece == Piece.WP:
+            if flags & atkWhitePawn:
+                return True
+        if piece == Piece.BP:
+            if flags & atkBlackPawn:
+                return True
+        elif piece in [Piece.WB, Piece.BB]:
+            if flags & atkBishop and rayIsClear(fromSquare, square):
+                return True
+        elif piece in [Piece.WR, Piece.BR]:
+            if flags & atkRook and rayIsClear(fromSquare, square):
+                return True
+        elif piece in [Piece.WQ, Piece.BQ]:
+            if flags & (atkBishop | atkRook) and rayIsClear(fromSquare, square):
+                return True
+    return False
+
+def findKingSquare(isWhite):
+    target = Piece.WK if isWhite else Piece.BK
+    for square in range(128):
+        if isSquareValid(square) and board[square] == target:
+            return square
+    return -1 # no king on board, error
+
+def isKingInCheck(isWhite):
+    kingSquare = findKingSquare(isWhite)
+    return isSquareAttacked(kingSquare)

@@ -1,39 +1,10 @@
+import engine
 from engine import Piece, attacks, isSquareValid, findDelta # add global board back after testing
 
-# TEST BOARD
-board = [ # (A - H)
-    # Rank 1
-    Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-    Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD,
+# board pointer
+board = engine.board
 
-    # Rank 2
-    Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-    Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD,
-
-    # Rank 3
-    Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-    Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD,
-
-    # Rank 4
-    Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-    Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD,
-
-    # Rank 5
-    Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.WQ, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-    Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD,
-
-    # Rank 6
-    Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-    Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD,
-
-    # Rank 7
-    Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-    Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD,
-
-    # Rank 8
-    Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY, Piece.EMPTY,
-    Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD, Piece.OFFBOARD,
-]
+promotionPieces = ['q', 'r', 'b', 'n']
 
 # formatter
 def indexToAlgebraic(index):
@@ -41,11 +12,19 @@ def indexToAlgebraic(index):
     rankChar = str((index // 16) + 1)
     return (fileChar + rankChar)
 
-# eventually add caputre moves, castling, etc
+# eventually add special formatting for caputre moves, castling, etc
 def createMove(fromSquare, toSquare): # returns e2e4 format string
     return (indexToAlgebraic(fromSquare) + indexToAlgebraic(toSquare))
 
-# add promotions and en passant
+# helper function for promotions
+def addPawnMove(fromSquare, toSquare, moveList):
+    targetRank = toSquare // 16
+    base = createMove(fromSquare, toSquare)
+    if targetRank == 0 or targetRank == 7:
+        for p in promotionPieces:
+            moveList.append(base + p)
+    else: moveList.append(base)
+
 def getPawnMoves(index, moveList):
     global board
     rank = index // 16
@@ -55,8 +34,7 @@ def getPawnMoves(index, moveList):
         if rank == 1:
             isFirstMove = True
         if board[index + 16] == Piece.EMPTY:
-            move = createMove(index, index + 16)
-            moveList.append(move)
+            addPawnMove(index, index + 16, moveList)
             if isFirstMove:
                 if board[index + 32] == Piece.EMPTY:
                     move = createMove(index, index + 32)
@@ -65,6 +43,8 @@ def getPawnMoves(index, moveList):
             target = index + vec
             if isSquareValid(target):
                 if Piece.BP <= board[target] <= Piece.BK:
+                    addPawnMove(index, target, moveList)
+                elif target == engine.enPassantSquare:
                     move = createMove(index, target)
                     moveList.append(move)
     # BLACK MOVES
@@ -72,8 +52,7 @@ def getPawnMoves(index, moveList):
         if rank == 6:
             isFirstMove = True
         if board[index - 16] == Piece.EMPTY:
-            move = createMove(index, index - 16)
-            moveList.append(move)
+            addPawnMove(index, index - 16, moveList)
             if isFirstMove:
                 if board[index - 32] == Piece.EMPTY:
                     move = createMove(index, index - 32)
@@ -82,6 +61,8 @@ def getPawnMoves(index, moveList):
             target = index + vec
             if isSquareValid(target):
                 if Piece.WP <= board[target] <= Piece.WK:
+                    addPawnMove(index, target, moveList)
+                elif target == engine.enPassantSquare:
                     move = createMove(index, target)
                     moveList.append(move)
 
@@ -224,13 +205,14 @@ def getRookMoves(index, moveList):
                 elif Piece.BP <= board[current] <= Piece.BK: # BLOCKS
                     break
 
-# eventually need to add checks for whiteToMove, if true generate white moves, if false generate blackmoves
+# pseudo-legals
 def generateMoves():
-    global board
     moveList = []
     for index in range(128):
-        piece = board[index]
+        piece = board[index] # selected piece
         if not isSquareValid(index) or piece == Piece.EMPTY: continue
+        isWhitePiece = (piece <= Piece.WK) # true if white, false if black
+        if engine.whiteToMove != isWhitePiece: continue # break if not white move
         elif piece == Piece.BP or piece == Piece.WP:
             # PAWN
             getPawnMoves(index, moveList)
@@ -250,6 +232,7 @@ def generateMoves():
             # QUEEN
             getQueenMoves(index, moveList)
     return moveList
+
 
 # DEBUG
 arr = generateMoves()
