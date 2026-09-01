@@ -1,10 +1,10 @@
-# ENGINE LOGIC
 
 board = [0] * 128
 attacks = [0] * 257
 whiteToMove = True
 castlingRights = {}
 enPassantSquare = -1 # none available
+moveStack = []
 
 class Piece:
     OFFBOARD = -1
