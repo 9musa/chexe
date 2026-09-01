@@ -205,6 +205,31 @@ def getRookMoves(index, moveList):
                 elif Piece.BP <= board[current] <= Piece.BK: # BLOCKS
                     break
 
+def getCastlingMoves(moveList):
+    global board
+    if engine.whiteToMove:
+        if board[4] != Piece.WK: # e1
+            return
+        if engine.castlingRights.get("WK", False) and board[7] == Piece.WR: # h1
+            if board[5] == Piece.EMPTY and board[6] == Piece.EMPTY: # f1, g1
+                if not (engine.isSquareAttacked(4, False) or engine.isSquareAttacked(5, False) or engine.isSquareAttacked(6, False)): # e1, f1, g1
+                    moveList.append("e1g1")
+        if engine.castlingRights.get("WQ", False) and board[0] == Piece.WR: # a1
+            if board[1] == Piece.EMPTY and board[2] == Piece.EMPTY and board[3] == Piece.EMPTY: # b1, c1, d1
+                if not (engine.isSquareAttacked(2, False) or engine.isSquareAttacked(3, False) or engine.isSquareAttacked(4, False)): # c1, d1, e1
+                    moveList.append("e1c1")
+    else:
+        if board[116] != Piece.BK: # e8
+            return
+        if engine.castlingRights.get("BK", False) and board[119] == Piece.BR: # h8
+            if board[117] == Piece.EMPTY and board[118] == Piece.EMPTY: # f8, g8
+                if not (engine.isSquareAttacked(116, True) or engine.isSquareAttacked(117, True) or engine.isSquareAttacked(118, True)): # e8, f8, g8
+                    moveList.append("e8g8")
+        if engine.castlingRights.get("BQ", False) and board[112] == Piece.BR: # a8
+            if board[113] == Piece.EMPTY and board[114] == Piece.EMPTY and board[115] == Piece.EMPTY: # b8, c8, d8
+                if not (engine.isSquareAttacked(114, True) or engine.isSquareAttacked(115, True) or engine.isSquareAttacked(116, True)): # c8, d8, e8
+                    moveList.append("e8c8")
+
 # pseudo-legals
 def generateMoves():
     moveList = []

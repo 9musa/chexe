@@ -40,6 +40,7 @@ def initBoard():
         board.extend(chessBoard[i : i + 8])
         board.extend([Piece.OFFBOARD] * 8)
     whiteToMove = True
+    enPassantSquare = -1
     castlingRights = {
         "WK": True,
         "WQ": True,
