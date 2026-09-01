@@ -48,13 +48,86 @@ def initBoard():
         "BQ": True
     }
 
-""" def printBoard():
-    for col in range(0, 64, 8):
-        for row in range(0, 8):
-            print(pieceToChar(board[col+row]), end=" ")
-        print("") """
+def loadFEN(fen):
+    global board, whiteToMove, castlingRights, enPassantSquare
+    parts = fen.split()
+    if len(parts) != 6:
+        return # invalid fen
 
-def pieceToChar(Piece):
+    position, turn, castling, enPassant, halfMove, fullMove = parts
+
+    pieceMap = {
+        'P': Piece.WP,
+        'N': Piece.WN,
+        'B': Piece.WB,
+        'R': Piece.WR,
+        'Q': Piece.WQ,
+        'K': Piece.WK,
+        'p': Piece.BP,
+        'n': Piece.BN,
+        'b': Piece.BB,
+        'r': Piece.BR,
+        'q': Piece.BQ,
+        'k': Piece.BK
+    }
+
+    board.clear()
+
+    # fen uses 8 to 1, so must invert ranks to match
+    ranks = position.split('/')
+    moveStack.clear()
+
+    if len(ranks) != 8:
+        raise ValueError("Invalid FEN: expected 8 ranks")
+
+    for rank in reversed(ranks):
+        for char in rank:
+            if char.isdigit():
+                board.extend([Piece.EMPTY] * int(char))
+            elif char in pieceMap:
+                board.append(pieceMap[char])
+            else:
+                raise ValueError(f"Invalid FEN character: {char}")
+
+        # buffer board
+        board.extend([Piece.OFFBOARD] * 8)
+
+    # sets side
+    if turn == 'w':
+        whiteToMove = True
+    elif turn == 'b':
+        whiteToMove = False
+    else:
+        raise ValueError("Invalid FEN side to move")
+
+    # castling rights
+    castlingRights = {
+        "WK": "K" in castling,
+        "WQ": "Q" in castling,
+        "BK": "k" in castling,
+        "BQ": "q" in castling
+    }
+
+    # en passant target square
+    if enPassant == '-':
+        enPassantSquare = -1
+    else:
+        enPassantSquare = algebraicToIndex(enPassant)
+
+    return halfMove, fullMove
+
+# formatter
+def indexToAlgebraic(index):
+    fileChar = chr(ord('a') + index % 16)
+    rankChar = str((index // 16) + 1)
+    return (fileChar + rankChar)
+
+def algebraicToIndex(squareStr):
+    file = ord(squareStr[0]) - ord('a')
+    rank = int(squareStr[1]) - 1
+    return rank * 16 + file
+
+def pieceToChar(piece):
     symbols = {
         Piece.OFFBOARD: "--",
         Piece.EMPTY: "OO",
@@ -71,11 +144,7 @@ def pieceToChar(Piece):
         Piece.BQ: "BQ",
         Piece.BK: "BK"
     }
-    return symbols[Piece]
-
-""" def squareToIndex(index):
-
-    return index """
+    return symbols[piece]
 
 def isSquareValid(square):
     return ((square & 0x88)) == 0
@@ -180,4 +249,100 @@ def findKingSquare(isWhite):
 
 def isKingInCheck(isWhite):
     kingSquare = findKingSquare(isWhite)
-    return isSquareAttacked(kingSquare)
+    return isSquareAttacked(kingSquare, not isWhite)
+
+# algebraic move as parameter
+def makeMove(moveStr):
+    global whiteToMove, enPassantSquare
+
+    fromSquare = algebraicToIndex(moveStr[0:2])
+    toSquare = algebraicToIndex(moveStr[2:4])
+    promo = moveStr[4] if len(moveStr) == 5 else None
+
+    movingPiece = board[fromSquare]
+    caputredPiece = board[toSquare]
+
+    isEnPassant = (movingPiece in (Piece.WP, Piece.BP) and toSquare == enPassantSquare and caputredPiece == Piece.EMPTY)
+    epSquare = epCapturedPiece = None
+    if isEnPassant:
+        epSquare = toSquare - 16 if movingPiece == Piece.WP else toSquare + 16
+        epCapturedPiece = board[epSquare]
+
+    isCastle = movingPiece in (Piece.WK, Piece.BK) and abs(toSquare - fromSquare) == 2
+    rookFrom = rookTo = None
+    if isCastle:
+        rookFrom, rookTo = {
+            6: (7, 5), 2: (0, 3), 118: (119, 117), 114: (112, 115) # g1 to h1 or f1, c1 to a1 or d1, g8 to h8 or f8, c8 to a8 or d8
+        }[toSquare]
+
+    if promo:
+        isWhite = movingPiece == Piece.WP
+        promoPiece = {'q': Piece.WQ, 'r': Piece.WR, 'b': Piece.WB, 'n': Piece.WN}[promo]
+        if not isWhite:
+            promoPiece += 6 # shifts white piece to equivalent black piece
+        placedPiece = promoPiece
+    else:
+        placedPiece = movingPiece
+
+    # saves everything needed to undo
+    moveStack.append({
+        "fromSquare": fromSquare, "toSquare": toSquare,
+        "movingPiece": movingPiece, "caputredPiece": caputredPiece,
+        "isEnPassant": isEnPassant, "epSquare": epSquare, "epCapturedPiece": epCapturedPiece,
+        "isCastle": isCastle, "rookFrom": rookFrom, "rookTo": rookTo,
+        "prevCastlingRights": dict(castlingRights),
+        "prevEnPassantSquare": enPassantSquare,
+        "prevWhiteToMove": whiteToMove,
+    })
+
+    if isEnPassant:
+        board[epSquare] = Piece.EMPTY
+    board[toSquare] = placedPiece
+    board[fromSquare] = Piece.EMPTY
+    if isCastle:
+        board[rookTo] = board[rookFrom]
+        board[rookFrom] = Piece.EMPTY
+
+    if movingPiece == Piece.WK:
+        castlingRights["WK"] = False
+        castlingRights["WQ"] = False
+    elif movingPiece == Piece.BK:
+        castlingRights["BK"] = False
+        castlingRights["BQ"] = False
+    if fromSquare == 0 or toSquare == 0:
+        castlingRights["WQ"] = False
+    if fromSquare == 7 or toSquare == 7:
+        castlingRights["WK"] = False
+    if fromSquare == 112 or toSquare == 112:
+        castlingRights["BQ"] = False
+    if fromSquare == 119 or toSquare == 119:
+        castlingRights["BK"] = False
+
+    # en passant for one move right and double push
+    if movingPiece in (Piece.WP, Piece.BP) and abs(toSquare - fromSquare) == 32:
+        enPassantSquare = (fromSquare + toSquare) // 2
+    else:
+        enPassantSquare = -1
+ 
+    whiteToMove = not whiteToMove
+
+def unmakeMove():
+    global whiteToMove, enPassantSquare
+ 
+    record = moveStack.pop()
+    fromSquare, toSquare = record["fromSquare"], record["toSquare"]
+ 
+    board[fromSquare] = record["movingPiece"] # undoes promotion, restores the pawn
+    board[toSquare] = record["capturedPiece"]
+ 
+    if record["isEnPassant"]:
+        board[record["epSquare"]] = record["epCapturedPiece"]
+ 
+    if record["isCastle"]:
+        board[record["rookFrom"]] = board[record["rookTo"]]
+        board[record["rookTo"]] = Piece.EMPTY
+ 
+    castlingRights.clear()
+    castlingRights.update(record["prevCastlingRights"])
+    enPassantSquare = record["prevEnPassantSquare"]
+    whiteToMove = record["prevWhiteToMove"]

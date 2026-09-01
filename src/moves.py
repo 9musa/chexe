@@ -1,16 +1,10 @@
 import engine
-from engine import Piece, attacks, isSquareValid, findDelta # add global board back after testing
+from engine import Piece, isSquareValid, algebraicToIndex, indexToAlgebraic # add global board back after testing
 
 # board pointer
 board = engine.board
 
 promotionPieces = ['q', 'r', 'b', 'n']
-
-# formatter
-def indexToAlgebraic(index):
-    fileChar = chr(ord('a') + index % 16)
-    rankChar = str((index // 16) + 1)
-    return (fileChar + rankChar)
 
 # eventually add special formatting for caputre moves, castling, etc
 def createMove(fromSquare, toSquare): # returns e2e4 format string
@@ -256,10 +250,42 @@ def generateMoves():
         elif piece == Piece.BQ or piece == Piece.WQ:
             # QUEEN
             getQueenMoves(index, moveList)
+    # CASTLE
+    getCastlingMoves(moveList)
     return moveList
 
+# algebraic move as parameter
+# simple make-unmake
+def wouldLeaveKingInCheck(moveStr, isWhite):
+    global board
+    fromSquare = algebraicToIndex(moveStr[0:2])
+    toSquare = algebraicToIndex(moveStr[2:4])
+    movingPiece = board[fromSquare]
+    capturedPiece = board[toSquare]
+ 
+    # en passant capture mechanism
+    epSquare = None
+    epPiece = None
+    isEnPassant = (movingPiece in (Piece.WP, Piece.BP)
+                   and toSquare == engine.enPassantSquare
+                   and capturedPiece == Piece.EMPTY)
+    if isEnPassant:
+        epSquare = toSquare - 16 if movingPiece == Piece.WP else toSquare + 16
+        epPiece = board[epSquare]
+        board[epSquare] = Piece.EMPTY
+ 
+    board[toSquare] = movingPiece
+    board[fromSquare] = Piece.EMPTY
+ 
+    inCheck = engine.isKingInCheck(isWhite)
+ 
+    board[fromSquare] = movingPiece
+    board[toSquare] = capturedPiece
+    if isEnPassant:
+        board[epSquare] = epPiece
+ 
+    return inCheck
 
-# DEBUG
-arr = generateMoves()
-print(arr)
-print(len(arr))
+def getLegalMoves():
+    isWhite = engine.whiteToMove
+    return [m for m in generateMoves() if not wouldLeaveKingInCheck(m, isWhite)]
