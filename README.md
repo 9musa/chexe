@@ -3,8 +3,9 @@
 ## Overview
 Chexe (pronounced *"Checks"*) is an open-source chess engine that communicates via the UCI protocol.
 
-## Status
-Currently still under development.
+## TO-DO
+- Add eval search functions
+- Complete documentation
 
 ## Acknowledgements
 - [Chess Programming Wiki](https://www.chessprogramming.org/) for its comprehensive repository of chess programming knowledge.
